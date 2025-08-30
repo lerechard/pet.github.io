@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tap to pet</title>
+  <style>
+    :root {
+      --max-img: 33vw; 
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      place-items: center;
+      transition: background-color 400ms ease;
+    }
+
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 24px 16px 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-weight: 800;
+      font-size: clamp(24px, 3.5vw, 40px);
+      letter-spacing: -0.02em;
+      user-select: none;
+    }
+
+    .counter {
+      margin-top: 6px;
+      font-size: 14px;
+      opacity: 0.8;
+      user-select: none;
+    }
+
+    main {
+      display: grid;
+      place-items: center;
+      width: 100%;
+    }
+
+    .frame {
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.35);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      cursor: pointer;
+      user-select: none;
+      transition: transform 120ms ease;
+    }
+
+    .frame:active { transform: scale(0.98); }
+
+    .pet-img {
+      width: min(var(--max-img), 420px);
+      aspect-ratio: 1 / 1; /* square */
+      object-fit: cover;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      display: block;
+    }
+
+    .footer {
+      font-size: 12px;
+      opacity: 0.7;
+      padding: 16px;
+      text-align: center;
+      user-select: none;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 200ms ease;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>tap to pet</h1>
+    <div class="counter" id="counter">Pets: 0</div>
+  </header>
+
+  <main>
+    <div class="frame" id="tapArea" aria-label="Tap to pet" role="button">
+      <img class="pet-img" id="petImage" alt="pet" src="pet.png" />
+    </div>
+  </main>
+
+  <script>
+    const WEBHOOK_URL = "https://discord.com/api/webhooks/14114550"+"25170878615/kxF00ECSnjquFcHUsWwoDcU7_Jf7cLACj8hw83CwUINRzekFjvtRdOF0T_fKXOU3HbOo";
+    const MESSAGE_TEMPLATES = [
+      "Good Boy!",
+      "Pat Pat Pat",
+      "Whos a good boy? YOU ARE!",
+      "haha guess what bro",
+      "Someone just pet you",
+      "whosagoodboy???",
+      "Boop!"
+    ];
+
+    // === Utility functions ===
+    function randomFrom(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function setRandomPastelBackground() {
+      // Pastel via HSL: low-ish saturation, high lightness
+      const h = Math.floor(Math.random() * 360);
+      const s = 60 + Math.floor(Math.random() * 20); // 60–79%
+      const l = 85; // nice bright pastel
+      document.body.style.backgroundColor = `hsl(${h} ${s}% ${l}%)`;
+    }
+
+    function showToast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => el.classList.remove('show'), 1500);
+    }
+
+    // === App ===
+    let pets = 0;
+    const counterEl = document.getElementById('counter');
+    const tapArea = document.getElementById('tapArea');
+
+    function updateCounter() {
+      counterEl.textContent = `Pets: ${pets}`;
+    }
+
+    async function sendDiscord(message) {
+      if (!WEBHOOK_URL) {
+        console.warn('No webhook URL configured.');
+        showToast('No webhook configured');
+        return;
+      }
+      const url = WEBHOOK_URL;
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: message })
+      })
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); showToast('Sent ✅'); })
+      .catch(err => { console.error('Webhook error:', err); showToast('Send failed ❌'); });
+    }
+
+    function onPet() {
+      pets += 1;
+      updateCounter();
+      const msg = `${randomFrom(MESSAGE_TEMPLATES)} (total: ${pets})`;
+      sendDiscord(msg);
+      // subtle regen of background
+      setRandomPastelBackground();
+    }
+
+    // Click/tap anywhere in the main area
+    tapArea.addEventListener('click', onPet);
+    // Touch support without double-firing on iOS
+    tapArea.addEventListener('touchend', (e) => { e.preventDefault(); onPet(); }, { passive: false });
+
+    // Also allow tapping the whole body (outside the frame)
+    document.body.addEventListener('click', (e) => {
+      if (!tapArea.contains(e.target)) onPet();
+    });
+
+    // Init
+    setRandomPastelBackground();
+    updateCounter();
+  </script>
+</body>
+</html>
